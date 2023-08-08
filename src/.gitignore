@@ -1,3 +1,5 @@
 *.o
 *.a
 *.gz
+tags
+stardust
