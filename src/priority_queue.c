@@ -297,6 +297,8 @@ struct thread *remove_by_id(int id, thread_queue_t *tq)
                         temp->next->prev = temp->prev;
                     }
 
+                    temp->next = NULL;
+                    temp->prev = NULL;
                     return temp;
                 }
                 temp = temp->next;

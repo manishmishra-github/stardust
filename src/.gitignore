@@ -1,5 +1,6 @@
 *.o
 *.a
 *.gz
+*.swp
 tags
 stardust

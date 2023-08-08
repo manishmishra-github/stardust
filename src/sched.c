@@ -359,8 +359,8 @@ static void sched_reap_dead(void)
 
 				thread->overall_time = NOW() - thread->creation_time;
 
-				printk("THREAD_ID:%d;PRIORITY:%d;PREEMPT_COUNT:%d;CREATION_TIME:%ld;OVERALL_TIME:%ld,",
-					   thread->id, thread->priority, thread->preempt_count, thread->creation_time, thread->overall_time);
+				printk("THREAD_ID:%d;PRIORITY:%d;SCHED_COUNT:%d;CREATION_TIME:%ld;OVERALL_TIME:%ld,",
+					   thread->id, thread->priority, thread->schedule_count, thread->creation_time, thread->overall_time);
 
 				xfree(thread);
 			}
@@ -389,6 +389,7 @@ static inline struct thread *pick_thread(struct thread *prev, int cpu)
 
     if (is_runnable(prev) && prev != this_cpu(idle_thread))
     {
+        //printk("\nPREV\n");
         if (NULL == priority_ready_q->remove_by_id(prev->id, priority_ready_q))
         {
             BUG();
@@ -425,7 +426,6 @@ static inline struct thread *pick_thread(struct thread *prev, int cpu)
                            affinity) */
                         if (thread->cpu == cpu || thread->cpu == -1)
                         {
-                            //printk("THREAD_ID:%d PRIOR:%d", thread->id, thread->priority);
                             next = thread;
                             break;
                         }
@@ -449,6 +449,7 @@ static inline struct thread *pick_thread(struct thread *prev, int cpu)
             //printk("Scheduling error, %d\n", next->id);
             BUG();
         }
+        next->schedule_count++;
 
         set_running(next);
         spin_unlock_irqrestore(&ready_lock, flags);

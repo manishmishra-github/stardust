@@ -114,19 +114,19 @@ void compute_primes(int max) {
 
 void fn(void *arg)
 {
-    //fibonacci(40);
-    //printf("HI");
-    compute_primes(100090);
+    compute_primes(1000900);
 }
 
 __attribute__((weak)) int app_main(struct app_main_args *aargs)
 {
-        //create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 1);
 
+        //create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 1);
+        //create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 4);
     for (int i = 0; i < 5760; i++)
     {
         create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, i % 128);
     }
+
     /*
     for (int i = 0; i < 300; i++)
     {
