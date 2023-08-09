@@ -2,6 +2,7 @@
 #include <thread_queue.h>
 #include <os/xmalloc.h>
 #include <os/sched.h>
+#include <stdio.h>
 
 queue_t *create_queue()
 {
@@ -162,14 +163,10 @@ struct thread *dequeue(thread_queue_t *tq)
             // Move all threads from the next non-empty queue and all queues below it up by the difference
             for (int j = 0; j < NUM_PRIORITIES - next_non_empty_index; j++)
             {
-                struct thread *thread = pq_dequeue(pq->queues[j + next_non_empty_index]);
-                if (thread != NULL)
-                {
-                    add_to_rear(pq->queues[j], thread);
-                }
+                add_to_rear(pq->queues[j], j, pq->queues[j + next_non_empty_index]);
                 // Set the front and rear pointers of the dequeued queue to NULL
                 pq->queues[j + next_non_empty_index]->front = NULL;
-                pq->queues[j + next_non_empty_index]->rear = NULL;
+                pq->queues[j + next_non_empty_index]->rear = NULL;    
             }
         }
 
@@ -192,6 +189,46 @@ struct thread *dequeue(thread_queue_t *tq)
 
     return thread;
 }
+
+void add_to_rear(queue_t *destination, int destination_priority, queue_t *source)
+{
+    if (destination == NULL || source == NULL)
+    {
+        return;
+    }
+
+    // If the source queue is empty, just return
+    if (is_empty(source))
+    {
+        return;
+    }
+
+    // Update the priorities of threads in source to match the destination
+    struct thread *temp = source->front;
+    while (temp != NULL)
+    {
+        temp->priority = destination_priority;
+        temp = temp->next;
+    }
+
+    // If the destination queue is empty
+    if (is_empty(destination))
+    {
+        destination->front = source->front;
+        destination->rear = source->rear;
+    }
+    else
+    {
+        destination->rear->next = source->front;
+        source->front->prev = destination->rear;
+        destination->rear = source->rear;
+    }
+
+    source->front = NULL;
+    source->rear = NULL;
+}
+
+
 
 // Get thread by ID
 struct thread *getByID(int id, thread_queue_t *tq)
@@ -332,6 +369,7 @@ void free_queue(thread_queue_t *tq)
     xfree(pq);
 }
 
+/*
 void add_to_rear(queue_t *queue, struct thread *thread)
 {
     if (queue == NULL || thread == NULL)
@@ -359,93 +397,140 @@ void add_to_rear(queue_t *queue, struct thread *thread)
         temp = temp->next;
     }
     queue->rear = temp;
+    printf("PROMOTE");
+}
+*/
+
+/*
+void add_to_rear(queue_t *dest_queue, queue_t *src_queue) {
+    if (dest_queue == NULL || src_queue == NULL) {
+        return;
+    }
+
+    // If the source queue is empty, there's nothing to append
+    if (is_empty(src_queue)) {
+        return;
+    }
+
+    // If the destination queue is empty, make its front and rear point to the source queue's front and rear
+    if (is_empty(dest_queue)) {
+        dest_queue->front = src_queue->front;
+        dest_queue->rear = src_queue->rear;
+    } else {
+        // Link the rear of the destination queue to the front of the source queue
+        dest_queue->rear->next = src_queue->front;
+        src_queue->front->prev = dest_queue->rear;
+        // Update the rear pointer of the destination queue
+        dest_queue->rear = src_queue->rear;
+    }
+
+    // Reset the front and rear pointers of the source queue to NULL
+    src_queue->front = NULL;
+    src_queue->rear = NULL;
+}
+*/
+void demote_processes(priority_queue_t *scheduler)
+{
+    if (scheduler == NULL)
+    {
+        printf("Scheduler is NULL.\n");
+        return;
+    }
+
+    queue_t *highest_priority_queue = scheduler->queues[0]; // Get the queue at the highest priority level
+    if (!is_empty(highest_priority_queue))
+    {                                                          // If the queue is not empty
+        struct thread *thread = highest_priority_queue->front; // Get the front thread in the queue
+        while (thread != NULL)
+        {
+            //Save the next thread before modifying pointers
+            struct thread *next_thread = thread->next;
+
+            //If the thread has run once and is not at its original priority
+            if (thread->schedule_count > 0 && thread->priority != thread->original_priority)
+            {
+                    thread->priority = thread->original_priority;
+                //printf("\nDEMOTING\n");
+                //If the thread is at the front of the queue
+                if (thread == highest_priority_queue->front)
+                {
+                    //printf("\n FRONT DEMOTING\n");
+                    highest_priority_queue->front = next_thread;
+                    if (next_thread != NULL)
+                    {
+                        next_thread->prev = NULL;
+                    }
+                }
+                // If the thread is at the rear of the queue
+                else if (thread == highest_priority_queue->rear)
+                {
+                    //printf("\nREAR DEMOTING\n");
+                    highest_priority_queue->rear = thread->prev;
+                    if (thread->prev != NULL)
+                    {
+                        thread->prev->next = NULL;
+                    }
+                }
+                //If the thread is in the middle of the queue
+                else
+                {
+                    thread->prev->next = next_thread;
+                    next_thread->prev = thread->prev;
+                }
+
+                // Reset the schedule count
+                thread->next = NULL;
+                thread->prev = NULL;
+                thread->schedule_count = 0;
+
+                // Add the thread back to its original priority queue
+                if (thread->original_priority >= 0 && thread->original_priority < NUM_PRIORITIES)
+                {
+                    //pq_enqueue(scheduler->queues[thread->original_priority], thread);
+
+                    queue_t *queue = scheduler->queues[thread->original_priority];
+                    if(is_empty(queue))
+                    {
+                        queue->front = thread;
+                        queue->rear = thread;
+                    }
+                    else
+                    {
+                        queue->rear->next = thread;
+                        thread->prev = queue->rear;
+                        queue->rear = thread;
+                    }
+                    printf("");
+                }
+                else
+                {
+                    printf("Original priority of the thread is out of range.\n");
+                }
+            }
+
+            thread = next_thread; // Move to the next thread
+        }
+    }
 }
 
-// void demote_processes(priority_queue_t *scheduler)
-// {
-//     if (scheduler == NULL)
-//     {
-//         // printf("Scheduler is NULL.\n");
-//         return;
-//     }
+void promote_processes(priority_queue_t *pq)
+{
+    // Iterate over the priority levels from second highest to lowest.
+    for (int i = 1; i < NUM_PRIORITIES; i++)
+    {
+        if(!is_empty(pq->queues[i]))
+        {
+            // And add them to the rear of the queue at the next higher priority level.
+            add_to_rear(pq->queues[i - 1], i-1, pq->queues[i]);
+        }
+    }
+}
 
-//     queue_t *highest_priority_queue = scheduler->queues[0]; // Get the queue at the highest priority level
-//     if (!is_empty(highest_priority_queue))
-//     {                                                          // If the queue is not empty
-//         struct thread *thread = highest_priority_queue->front; // Get the front thread in the queue
-//         while (thread != NULL)
-//         {
-//             // Save the next thread before modifying pointers
-//             struct thread *next_thread = thread->next;
-
-//             // If the thread has run once and is not at its original priority
-//             if (thread->schedule_count > 0 && thread->priority != thread->original_priority)
-//             {
-//                 // If the thread is at the front of the queue
-//                 if (thread == highest_priority_queue->front)
-//                 {
-//                     highest_priority_queue->front = next_thread;
-//                     if (next_thread != NULL)
-//                     {
-//                         next_thread->prev = NULL;
-//                     }
-//                 }
-//                 // If the thread is at the rear of the queue
-//                 else if (thread == highest_priority_queue->rear)
-//                 {
-//                     highest_priority_queue->rear = thread->prev;
-//                     if (thread->prev != NULL)
-//                     {
-//                         thread->prev->next = NULL;
-//                     }
-//                 }
-//                 // If the thread is in the middle of the queue
-//                 else
-//                 {
-//                     thread->prev->next = next_thread;
-//                     next_thread->prev = thread->prev;
-//                 }
-
-//                 // Reset the schedule count
-//                 thread->schedule_count = 0;
-
-//                 // Add the thread back to its original priority queue
-//                 if (thread->original_priority >= 0 && thread->original_priority < NUM_PRIORITIES)
-//                 {
-//                     pq_enqueue(scheduler->queues[thread->original_priority], thread);
-//                 }
-//                 else
-//                 {
-//                     // printf("Original priority of the thread is out of range.\n");
-//                 }
-//             }
-
-//             thread = next_thread; // Move to the next thread
-//         }
-//     }
-// }
-
-// void promote_processes(priority_queue_t *pq)
-// {
-//     // Iterate over the priority levels from second highest to lowest.
-//     for (int i = 1; i < NUM_PRIORITIES; i++)
-//     {
-//         // If the queue at the current priority level is not empty...
-//         if (!is_empty(pq->queues[i]))
-//         {
-//             // Dequeue the threads from the current queue...
-//             struct thread *thread = pq_dequeue(pq->queues[i]);
-//             // And add them to the rear of the queue at the next higher priority level.
-//             add_to_rear(pq->queues[i - 1], thread);
-//         }
-//     }
-// }
-
-// void ageProcesses(priority_queue_t *scheduler)
-// {
-//     demote_processes(scheduler);
-//     promote_processes(scheduler);
-// }
+void age_processes(priority_queue_t *scheduler)
+{
+    demote_processes(scheduler);
+    promote_processes(scheduler);
+}
 
 // struct thread *create_thread_entry(int priority, int id)
 // {
@@ -577,9 +662,8 @@ priority_queue_t *create_priority_queue()
     pq->remove_by_id = &remove_by_id;
     pq->size = &size;
     pq->free_queue = &free_queue;
-    // pq->ageProcesses = &ageProcesses;
+    pq->age_processes = &age_processes;
     pq->iterator = &new_iterator;
-    pq->pq_enqueue = &pq_enqueue;
 
     return pq;
 }

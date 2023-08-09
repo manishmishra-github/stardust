@@ -36,9 +36,8 @@ struct priority_queue_t
 
     // specific fields
     queue_t *queues[NUM_PRIORITIES];
-    int (*pq_enqueue)(queue_t *, struct thread *);
     int current_priority_index;
-    //void (*ageProcesses)(priority_queue_t *);
+    void (*age_processes)(priority_queue_t*);
 };
 
 priority_queue_t *create_priority_queue();
@@ -51,7 +50,8 @@ int pq_enqueue(queue_t *, struct thread *);
 
 struct thread *pq_dequeue(queue_t *);
 
-void add_to_rear(queue_t *queue, struct thread *thread);
+//void add_to_rear(queue_t *queue, struct thread *thread);
+void add_to_rear(queue_t *dest_queue, int priority, queue_t *src_queue);
 
 struct thread *create_thread_entry(int, int);
 

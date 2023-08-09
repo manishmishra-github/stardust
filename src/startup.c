@@ -25,6 +25,8 @@
 #include <pthread.h>
 #include <assert.h>
 
+int g_var;
+
 #ifdef ENABLE_FS
 #include <fs/osal.h>
 #include <fs/fs-tests.h>
@@ -106,22 +108,39 @@ void compute_primes(int max) {
     for (int i = 0; i < max; i++) {
         if (is_prime(i)) {
             // Uncomment the below line if you want to print the prime numbers
-            // printf("%d ", i);
+            //printf("%d ", i);
         }
     }
 }
 
+void infinite_wait()
+{
+    compute_primes(100090000);
+    /*
+    while(1)
+    {
+        //sched_print_ready_queue();
+        g_var = 10;
+    }
+    */
+}
 
 void fn(void *arg)
 {
+    //printf("HI");
     compute_primes(1000900);
+    //printf("HI");
 }
 
 __attribute__((weak)) int app_main(struct app_main_args *aargs)
 {
 
-        //create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 1);
-        //create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 4);
+/*
+        create_thread_with_priority("Thread", &infinite_wait, UKERNEL_FLAG, NULL, 1);
+        create_thread_with_priority("Thread", &infinite_wait, UKERNEL_FLAG, NULL, 1);
+        create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 2);
+        //sched_print_ready_queue();
+        */
     for (int i = 0; i < 5760; i++)
     {
         create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, i % 128);

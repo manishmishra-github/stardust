@@ -77,6 +77,10 @@
 
 #define DEFAULT_SLEEP_MS 1
 
+#define DEFAULT_AGEING_COUNT 1500
+
+static long num_preemption;
+
 static long timeslice = MILLISECS(DEFAULT_TIMESLICE_MS);
 
 static uint16_t thread_id = MAX_VIRT_CPUS;
@@ -360,7 +364,7 @@ static void sched_reap_dead(void)
 				thread->overall_time = NOW() - thread->creation_time;
 
 				printk("THREAD_ID:%d;PRIORITY:%d;SCHED_COUNT:%d;CREATION_TIME:%ld;OVERALL_TIME:%ld,",
-					   thread->id, thread->priority, thread->schedule_count, thread->creation_time, thread->overall_time);
+					   thread->id, thread->original_priority, thread->schedule_count, thread->creation_time, thread->overall_time);
 
 				xfree(thread);
 			}
@@ -407,6 +411,14 @@ static inline struct thread *pick_thread(struct thread *prev, int cpu)
             prev->prev = queue->rear;
             queue->rear = prev;
         }
+    }
+
+    if(DEFAULT_AGEING_COUNT == num_preemption)
+    {
+        ////printk("\nPERFOMRING AGEING\n");
+
+        pq->age_processes(pq);
+        num_preemption = 0;
     }
 
     for(int j = 0; j < NUM_PRIORITIES; j++)
@@ -468,6 +480,8 @@ static inline struct thread *pick_thread(struct thread *prev, int cpu)
 
 void schedule(void)
 {
+    ++num_preemption;
+
 	struct thread *prev, *next;
 	int cpu;
 
