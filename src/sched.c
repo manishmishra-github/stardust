@@ -80,6 +80,7 @@
 #define DEFAULT_AGEING_COUNT 1500
 
 static long num_preemption;
+static int count_thread_sched;
 
 static long timeslice = MILLISECS(DEFAULT_TIMESLICE_MS);
 
@@ -335,11 +336,44 @@ static void sched_wake_joiners(struct thread *joinee)
 	}
 }
 
+static void gen_log_sched_count(struct thread *thread, char *buf)
+{
+    memset( buf, '\0', sizeof(buf) );
+    char *pad = "";
+    int k;
+    int n = thread->schedule_count;
+    for (k = 0; k < n; k++)
+    {
+        char temp[1024]  = "";
+        snprintf(temp, sizeof(temp), "%s%d", pad, thread->sched_pos[k]);
+        strcat(buf, temp);
+        pad = "|";
+    }
+}
+
+/*
+static void generate_log(struct thread *thread)
+{
+    char buf[1024];
+    char log[2048];
+    memset( buf, '\0', sizeof(buf) );
+    memset( log, '\0', sizeof(buf) );
+
+    gen_log_sched_count(thread, buf);
+    strcat(buf, ",");
+    snprintf(log, sizeof(log), "THREAD_ID:%d;PRIORITY:%d;SCHED_COUNT:%d;CREATION_TIME:%ld;OVERALL_TIME:%ld,SCHED_INDEX:", 
+            thread->id, thread->original_priority, thread->schedule_count, thread->creation_time, thread->overall_time);
+
+    strcat(log, buf);
+    printk("%s", log);
+}
+*/
+
 static void sched_reap_dead(void)
 {
 	struct list_head *iterator, *tmp;
 	struct thread *thread;
-	spin_lock(&dead_lock);
+    spin_lock(&dead_lock);
 
 	list_for_each_safe(iterator, tmp, &dead_queue)
 	{
@@ -348,6 +382,7 @@ static void sched_reap_dead(void)
 		{
 			if (!is_running(thread) && (thread->cpu == smp_processor_id()))
 			{
+                char buf[65535] = {'\0'};
 				list_del_init(&thread->ready_list);
 				if (!list_empty(&thread->joiners))
 				{
@@ -362,9 +397,28 @@ static void sched_reap_dead(void)
 				sched_del_thread_list(thread);
 
 				thread->overall_time = NOW() - thread->creation_time;
+                //generate_log(thread);
 
-				printk("THREAD_ID:%d;PRIORITY:%d;SCHED_COUNT:%d;CREATION_TIME:%ld;OVERALL_TIME:%ld,",
-					   thread->id, thread->original_priority, thread->schedule_count, thread->creation_time, thread->overall_time);
+/*
+                char *log_data = thread_to_csv(thread);
+                if(log_data != NULL)
+                {
+                    printk("%s\n", log_data);
+                    free(log_data);
+                    log_data = NULL;
+                }
+
+                //gen_log_sched_count(thread, buf);
+                //printk("%s\n",buf);
+                */
+                for(int i =0; i < thread->schedule_count; i++)
+                {
+                    printk("%d,%d,%d,%ld,%ld,%d\n",
+                            thread->id, thread->original_priority, thread->schedule_count, thread->creation_time,
+                            thread->overall_time, thread->sched_pos[i]);
+                }
+
+
 
 				xfree(thread);
 			}
@@ -415,7 +469,7 @@ static inline struct thread *pick_thread(struct thread *prev, int cpu)
 
     if(DEFAULT_AGEING_COUNT == num_preemption)
     {
-        ////printk("\nPERFOMRING AGEING\n");
+        //printk("\nPERFOMRING AGEING\n");
 
         pq->age_processes(pq);
         num_preemption = 0;
@@ -461,7 +515,14 @@ static inline struct thread *pick_thread(struct thread *prev, int cpu)
             //printk("Scheduling error, %d\n", next->id);
             BUG();
         }
-        next->schedule_count++;
+
+        if(next->schedule_count >=0 && next->schedule_count < MAX_SCHED_COUNT )
+        {
+            next->sched_pos[next->schedule_count] = count_thread_sched;
+            //printk("\nnext->sched_pos[next->schedule_count] %d %d %d\n", next->sched_pos[next->schedule_count], next->schedule_count,count_thread_sched);
+            next->schedule_count++;
+            count_thread_sched++;
+        }
 
         set_running(next);
         spin_unlock_irqrestore(&ready_lock, flags);
@@ -651,7 +712,10 @@ static struct thread *create_thread_with_id_stack(char *name, void (*function)(v
 	INIT_LIST_HEAD(&thread->aux_thread_list);
 	thread->id = id;
 	thread->priority = 0;
-	thread->schedule_count = 0;
+    thread->schedule_count = 0;
+    for (int i = 0; i < MAX_SCHED_COUNT; i++) {
+        thread->sched_pos[i] = -1;
+    }
 	thread->next = NULL;
 	thread->prev = NULL;
 	thread->creation_time = NOW();
@@ -710,6 +774,9 @@ static struct thread *create_thread_with_id_stack_with_priority(char *name, void
 	thread->priority = priority;
 	thread->original_priority = priority;
 	thread->schedule_count = 0;
+    for (int i = 0; i < MAX_SCHED_COUNT; i++) {
+        thread->sched_pos[i] = -1;
+    }
 	thread->next = NULL;
 	thread->prev = NULL;
 	thread->creation_time = NOW();
@@ -761,6 +828,9 @@ struct thread *create_idle_thread(unsigned int cpu)
 	thread->priority = 0;
 	thread->original_priority = 0;
 	thread->schedule_count = 0;
+    for (int i = 0; i < MAX_SCHED_COUNT; i++) {
+        thread->sched_pos[i] = -1;
+    }
 	thread->next = NULL;
 	thread->prev = NULL;
 	thread->creation_time = NOW();

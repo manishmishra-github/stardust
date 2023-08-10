@@ -116,13 +116,8 @@ void compute_primes(int max) {
 void infinite_wait()
 {
     compute_primes(100090000);
-    /*
-    while(1)
-    {
-        //sched_print_ready_queue();
-        g_var = 10;
-    }
-    */
+    //sched_print_ready_queue();
+    //g_var = 10;
 }
 
 void fn(void *arg)
@@ -135,16 +130,19 @@ void fn(void *arg)
 __attribute__((weak)) int app_main(struct app_main_args *aargs)
 {
 
-/*
-        create_thread_with_priority("Thread", &infinite_wait, UKERNEL_FLAG, NULL, 1);
-        create_thread_with_priority("Thread", &infinite_wait, UKERNEL_FLAG, NULL, 1);
-        create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 2);
+        //create_thread_with_priority("Thread", &infinite_wait, UKERNEL_FLAG, NULL, 1);
+        //create_thread_with_priority("Thread", &infinite_wait, UKERNEL_FLAG, NULL, 1);
+        //create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 2);
+        //create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 2);
+        //create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, 1);
         //sched_print_ready_queue();
-        */
+
+/*
     for (int i = 0; i < 5760; i++)
     {
-        create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, i % 128);
+        create_thread_with_priority("Thread", &fn, UKERNEL_FLAG, NULL, i % 50);
     }
+    */
 
     /*
     for (int i = 0; i < 300; i++)

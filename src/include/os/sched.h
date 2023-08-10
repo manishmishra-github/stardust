@@ -36,6 +36,8 @@
 #include <os/trace.h>
 #include <os/tls.h>
 
+#define MAX_SCHED_COUNT 65535
+
 struct fp_regs
 {
     unsigned long filler1;
@@ -133,9 +135,10 @@ struct thread
     void *db_data;
     unsigned long r14;
     struct tls *tls;
-    int priority;
-    int original_priority;
-    int schedule_count;
+    uint16_t priority;
+    uint16_t original_priority;
+    u64 schedule_count;
+    int sched_pos[MAX_SCHED_COUNT];
     s64 creation_time;
     s64 overall_time;
     struct thread *next;
